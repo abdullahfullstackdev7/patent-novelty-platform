@@ -1,0 +1,65 @@
+"""Import every model module so Base.metadata is complete for Alembic and tests."""
+
+from app.db.models.business import (
+    Client,
+    Invoice,
+    InvoiceLine,
+    Plan,
+    Subscription,
+    UsageEvent,
+)
+from app.db.models.cases import (
+    Case,
+    CaseShare,
+    ChartCell,
+    ClaimChart,
+    Disclosure,
+    DisclosureElement,
+    Report,
+    ReportVersion,
+    ReviewEvent,
+    SearchResult,
+    SearchRun,
+)
+from app.db.models.platform import (
+    AuditLog,
+    Job,
+    LlmCache,
+    LlmCall,
+    RefreshToken,
+    Role,
+    User,
+    UserToken,
+)
+from app.db.models.reference import Patent, PatentChunk, PatentClaim
+
+__all__ = [
+    "AuditLog",
+    "Case",
+    "CaseShare",
+    "ChartCell",
+    "ClaimChart",
+    "Client",
+    "Disclosure",
+    "DisclosureElement",
+    "Invoice",
+    "InvoiceLine",
+    "Job",
+    "LlmCache",
+    "LlmCall",
+    "Patent",
+    "PatentChunk",
+    "PatentClaim",
+    "Plan",
+    "RefreshToken",
+    "Report",
+    "ReportVersion",
+    "ReviewEvent",
+    "Role",
+    "SearchResult",
+    "SearchRun",
+    "Subscription",
+    "UsageEvent",
+    "User",
+    "UserToken",
+]

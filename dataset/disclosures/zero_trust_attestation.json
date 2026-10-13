@@ -1,0 +1,39 @@
+{
+  "title": "Zero-Trust Device Attestation Using Hardware-Bound Credentials",
+  "technical_field": "Network security and device identity",
+  "problem": "Network access decisions rely on credentials that can be copied from a compromised device, and devices are trusted for long periods after a single successful login.",
+  "solution": "Each device holds a private key sealed in a hardware security module and produces a signed attestation of its firmware measurements on every access request. A policy engine verifies the signature and measurements against an approved list, grants access scoped to a single session, and requires fresh attestation when the session token expires or the device posture changes.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "A private key sealed in a hardware security module of the device"
+    },
+    {
+      "id": "E2",
+      "text": "Generation by the device of a signed attestation of firmware measurements with each access request"
+    },
+    {
+      "id": "E3",
+      "text": "A policy engine that verifies the signature and compares the measurements with an approved list"
+    },
+    {
+      "id": "E4",
+      "text": "Granting of access scoped to a single session"
+    },
+    {
+      "id": "E5",
+      "text": "Expiry of the session token after a time limit"
+    },
+    {
+      "id": "E6",
+      "text": "A requirement for fresh attestation when the session token expires or the device posture changes"
+    }
+  ],
+  "dependent_features": [
+    "Posture includes disk encryption state",
+    "Revocation of an approved measurement takes effect on the next request"
+  ],
+  "priority_date": "2018-03-22",
+  "jurisdiction": "US",
+  "synthetic": true
+}

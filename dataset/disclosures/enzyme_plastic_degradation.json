@@ -1,0 +1,43 @@
+{
+  "title": "Enzymatic Process for Depolymerising Polyethylene Terephthalate",
+  "technical_field": "Biotechnology and plastics recycling",
+  "problem": "Mechanical recycling of polyethylene terephthalate lowers material quality, and known hydrolase enzymes are too slow and too heat sensitive for industrial use on crystalline plastic.",
+  "solution": "An engineered hydrolase with stabilising mutations is applied to amorphised plastic flakes in an aqueous reactor held near the glass transition temperature of the polymer. The monomers released are separated by membrane filtration and used to resynthesise new polymer, and the enzyme is recovered and reused.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "An engineered hydrolase enzyme comprising stabilising amino acid substitutions"
+    },
+    {
+      "id": "E2",
+      "text": "Pretreatment of polyethylene terephthalate flakes to reduce crystallinity"
+    },
+    {
+      "id": "E3",
+      "text": "An aqueous reactor operated near the glass transition temperature of the polymer"
+    },
+    {
+      "id": "E4",
+      "text": "Release of terephthalic acid and ethylene glycol monomers by enzymatic hydrolysis"
+    },
+    {
+      "id": "E5",
+      "text": "Separation of the monomers by membrane filtration"
+    },
+    {
+      "id": "E6",
+      "text": "Recovery and reuse of the enzyme in a subsequent batch"
+    },
+    {
+      "id": "E7",
+      "text": "Repolymerisation of the separated monomers into new polymer"
+    }
+  ],
+  "dependent_features": [
+    "The reactor pH is controlled by titration",
+    "Colored flakes are decolorised before hydrolysis"
+  ],
+  "priority_date": "2018-04-30",
+  "jurisdiction": "US",
+  "synthetic": true
+}

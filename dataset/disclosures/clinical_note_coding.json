@@ -1,0 +1,39 @@
+{
+  "title": "Retrieval-Based Assignment of Diagnosis Codes to Clinical Notes",
+  "technical_field": "Medical coding and natural language processing",
+  "problem": "Assigning billing and diagnosis codes to free-text clinical notes is slow and error prone, and classifiers trained on frequent codes fail on the long tail of rare codes.",
+  "solution": "The system embeds each sentence of a clinical note and retrieves the most similar code descriptions and previously coded sentences from an index. A ranking model scores the retrieved candidates using the note context, and codes above a confidence threshold are proposed to a human coder together with the supporting sentences.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "Segmentation of a clinical note into sentences"
+    },
+    {
+      "id": "E2",
+      "text": "Embedding of each sentence into a vector representation"
+    },
+    {
+      "id": "E3",
+      "text": "An index of code descriptions and previously coded sentences searched by vector similarity"
+    },
+    {
+      "id": "E4",
+      "text": "Retrieval of candidate diagnosis codes for each sentence from the index"
+    },
+    {
+      "id": "E5",
+      "text": "A ranking model that scores the candidate codes using context from the note"
+    },
+    {
+      "id": "E6",
+      "text": "Presentation to a human coder of codes above a confidence threshold with the supporting sentences"
+    }
+  ],
+  "dependent_features": [
+    "Rare codes are boosted using their description embedding",
+    "Coder corrections are added to the index"
+  ],
+  "priority_date": "2018-01-15",
+  "jurisdiction": "US",
+  "synthetic": true
+}

@@ -1,0 +1,39 @@
+{
+  "title": "Vehicle-to-Grid Charging Scheduler With Battery Degradation Cost",
+  "technical_field": "Electric vehicle charging and grid services",
+  "problem": "Schedulers that sell stored vehicle energy back to the grid ignore the battery wear caused by additional charge cycles, so owners can lose more value than they earn.",
+  "solution": "A scheduler receives electricity price forecasts, grid regulation signals and the departure time and required state of charge set by the driver. It estimates a marginal degradation cost per kilowatt hour from cycle depth and temperature, and solves an optimisation that charges and discharges the vehicle only when expected revenue exceeds the degradation cost while guaranteeing the departure charge level.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "Receipt of electricity price forecasts and grid regulation signals"
+    },
+    {
+      "id": "E2",
+      "text": "Receipt of a driver departure time and a required departure state of charge"
+    },
+    {
+      "id": "E3",
+      "text": "Estimation of a marginal battery degradation cost from cycle depth and battery temperature"
+    },
+    {
+      "id": "E4",
+      "text": "An optimisation that schedules charging and discharging of the vehicle battery"
+    },
+    {
+      "id": "E5",
+      "text": "Discharging to the grid only when expected revenue exceeds the degradation cost"
+    },
+    {
+      "id": "E6",
+      "text": "A constraint that guarantees the required state of charge at the departure time"
+    }
+  ],
+  "dependent_features": [
+    "The degradation model is updated from battery telemetry",
+    "Fleet-level limits on aggregate discharge"
+  ],
+  "priority_date": "2018-06-10",
+  "jurisdiction": "US",
+  "synthetic": true
+}

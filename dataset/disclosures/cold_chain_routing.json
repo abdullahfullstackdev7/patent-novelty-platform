@@ -1,0 +1,39 @@
+{
+  "title": "Cold-Chain Delivery Routing With Predicted Temperature Excursions",
+  "technical_field": "Logistics and perishable goods transport",
+  "problem": "Route planners for refrigerated delivery treat temperature as a fixed constraint and ignore how door openings, traffic delays and ambient heat change the load temperature along the route.",
+  "solution": "A routing system models payload temperature with a thermal model of each vehicle compartment. For every candidate route it predicts the time-temperature profile using forecast ambient temperature, expected stop durations and traffic delay, then selects the route and stop order that keeps predicted excursions below a limit while minimising travel time.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "A thermal model of a refrigerated vehicle compartment that predicts payload temperature over time"
+    },
+    {
+      "id": "E2",
+      "text": "Inputs to the model comprising forecast ambient temperature, expected stop duration and traffic delay"
+    },
+    {
+      "id": "E3",
+      "text": "Prediction of a time-temperature profile for each of a plurality of candidate routes"
+    },
+    {
+      "id": "E4",
+      "text": "Selection of a route and stop order that keeps the predicted temperature excursion below a limit"
+    },
+    {
+      "id": "E5",
+      "text": "Minimisation of travel time subject to the excursion limit"
+    },
+    {
+      "id": "E6",
+      "text": "Re-planning of remaining stops when a sensed compartment temperature deviates from the prediction"
+    }
+  ],
+  "dependent_features": [
+    "Door-open events are learned per driver",
+    "Priority is given to pharmaceuticals"
+  ],
+  "priority_date": "2018-02-20",
+  "jurisdiction": "US",
+  "synthetic": true
+}

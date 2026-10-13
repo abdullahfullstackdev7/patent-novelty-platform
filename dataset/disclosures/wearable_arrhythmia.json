@@ -1,0 +1,39 @@
+{
+  "title": "Wearable Patch for Atrial Fibrillation Detection With On-Device Inference",
+  "technical_field": "Wearable cardiac monitoring",
+  "problem": "Continuous electrocardiogram monitoring produces large data volumes that drain wearable batteries when streamed, while simple threshold detectors give many false alarms during motion.",
+  "solution": "A skin patch records single-lead electrocardiogram and accelerometer signals. A small neural network running on the patch microcontroller classifies each thirty second window, using the accelerometer to gate windows corrupted by motion. Only windows classified as irregular are compressed and transmitted to a phone, together with a confidence value.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "A skin patch with electrodes recording a single-lead electrocardiogram signal"
+    },
+    {
+      "id": "E2",
+      "text": "An accelerometer in the patch that produces a motion signal"
+    },
+    {
+      "id": "E3",
+      "text": "A neural network executed on a microcontroller of the patch that classifies fixed-length signal windows as regular or irregular rhythm"
+    },
+    {
+      "id": "E4",
+      "text": "Gating of windows by the motion signal so that motion-corrupted windows are not classified"
+    },
+    {
+      "id": "E5",
+      "text": "Compression and wireless transmission of only the windows classified as irregular"
+    },
+    {
+      "id": "E6",
+      "text": "Transmission of a classification confidence value with each transmitted window"
+    }
+  ],
+  "dependent_features": [
+    "The network is quantised to eight bits",
+    "The patch enters a low power mode between windows"
+  ],
+  "priority_date": "2018-05-03",
+  "jurisdiction": "US",
+  "synthetic": true
+}

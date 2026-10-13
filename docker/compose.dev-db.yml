@@ -1,0 +1,23 @@
+# Development database only. The full stack compose file is added in Phase 0.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: priorart-db
+    # Parallel index builds use shared memory, Docker's 64 MB default is too small for HNSW.
+    shm_size: 1gb
+    environment:
+      POSTGRES_USER: priorart
+      POSTGRES_PASSWORD: priorart
+      POSTGRES_DB: priorart
+    ports:
+      - "54329:5432"
+    volumes:
+      - priorart_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U priorart -d priorart"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  priorart_pgdata:

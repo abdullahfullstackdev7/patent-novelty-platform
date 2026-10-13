@@ -1,0 +1,39 @@
+{
+  "title": "Early Detection of Battery Thermal Runaway Using Impedance and Gas Sensing",
+  "technical_field": "Lithium-ion battery safety",
+  "problem": "Thermal runaway in lithium-ion packs is usually detected only after cell temperature has risen sharply, which leaves too little time to isolate the pack.",
+  "solution": "A battery management unit measures cell impedance at several frequencies and reads a gas sensor that detects electrolyte vapour inside the pack housing. A classifier combines impedance drift and gas concentration trends to raise an early warning minutes before temperature rises, and the unit opens a contactor and signals the vehicle controller.",
+  "elements": [
+    {
+      "id": "E1",
+      "text": "A battery management unit that measures electrochemical impedance of lithium-ion cells at a plurality of frequencies"
+    },
+    {
+      "id": "E2",
+      "text": "A gas sensor inside the pack housing that detects electrolyte vapour"
+    },
+    {
+      "id": "E3",
+      "text": "A classifier that combines impedance drift and gas concentration trend to compute a thermal runaway risk score"
+    },
+    {
+      "id": "E4",
+      "text": "An early warning raised when the risk score exceeds a threshold before cell temperature rises above a limit"
+    },
+    {
+      "id": "E5",
+      "text": "A contactor that is opened in response to the early warning to isolate the pack"
+    },
+    {
+      "id": "E6",
+      "text": "A signal sent to a vehicle controller identifying the affected module"
+    }
+  ],
+  "dependent_features": [
+    "Impedance measurement is done during idle periods",
+    "The risk threshold adapts to cell age"
+  ],
+  "priority_date": "2018-04-12",
+  "jurisdiction": "US",
+  "synthetic": true
+}

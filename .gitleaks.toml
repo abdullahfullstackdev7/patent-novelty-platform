@@ -1,0 +1,16 @@
+title = "PriorArt Atlas gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials in tests, placeholders, and non-source directories"
+paths = [
+  '''backend/tests/.*''',
+  '''\.env\.example''',
+  '''(^|/)\.venv/''',
+  '''(^|/)\.git/''',
+  '''(^|/)dataset/(raw|processed)/''',
+  '''(^|/)\.(ruff|pytest|mypy)_cache/''',
+  '''(^|/)__pycache__/''',
+]

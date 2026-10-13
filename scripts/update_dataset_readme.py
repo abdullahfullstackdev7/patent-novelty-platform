@@ -26,7 +26,7 @@ not this file.
 | PatentsView bulk tables (granted US patents) | Title, abstract, claims, CPC, assignee, summary text | CC BY 4.0, attribute PatentsView | Bulk files only, the legacy search API is not used |
 | HUPD, Harvard USPTO Patent Dataset (applications 2004 to 2018) | Full text for passage-level comparison | CC BY-SA 4.0 (stricter reading, see below) | Published applications are legitimate prior art |
 | Synthetic business history | Revenue and usage analytics | Project-owned | Generated in Phase 6, labelled as demo data |
-| Sample invention disclosures | Demo inputs | Project-owned | Authored in a later phase |
+| Sample invention disclosures | Demo inputs | Project-owned | 8 synthetic disclosures in `disclosures/`, not real inventions |
 
 License decision for HUPD: the Hugging Face metadata says CC BY-SA 4.0 while the dataset card
 text says CC BY 4.0. The stricter CC BY-SA 4.0 is applied. Any redistributed derived data,
@@ -92,6 +92,20 @@ maintainers.
   H04W, H01M, B60L, A61B, C12N. Patents without claims or without abstract and summary text are
   dropped and counted in `build_stats.json`.
 
+## Embeddings and database load
+
+```
+uv run --project backend python scripts/embed_corpus.py --dir dataset/processed
+uv run --project backend python scripts/load_to_postgres.py --dir dataset/processed
+```
+
+Embeddings are written as resumable shards in `processed/embeddings/part-NNNNN.parquet`
+(`chunk_id`, 384 float32) instead of one `embeddings.parquet`, so an interrupted run continues
+where it stopped. Claim, abstract and summary chunks are embedded by default, description
+chunks only with `--types ... description`. The loader copies everything into PostgreSQL and
+builds the HNSW and GIN indexes after the load. For the demo only,
+`scripts/quickstart_demo.py` runs migrations, build, embed and load in one go.
+
 ## Reproduce
 
 ```
@@ -110,10 +124,10 @@ run `download_patentsview.py --years ...` and `build_corpus.py --patentsview-yea
 
 ```
 raw/         gitignored. HUPD tarballs, PatentsView zips, manifest.json
-processed/   gitignored. corpus.parquet, chunks.parquet, build_stats.json, spot_check.md
+processed/   gitignored. corpus.parquet, chunks.parquet, embeddings/ (resumable shards), build_stats.json, spot_check.md
 demo/        committed. patents.jsonl, a deterministic sample for tests and the quick start
 seed/        committed. Business seed CSVs, generated in Phase 6
-disclosures/ committed. Sample invention disclosures, authored in a later phase
+disclosures/ committed. 8 synthetic sample disclosures as JSON plus a markdown copy each
 ```
 """
 
