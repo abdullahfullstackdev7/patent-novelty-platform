@@ -342,6 +342,9 @@ def seed_business_data(
         report.invoices, report.invoice_lines = len(invoices), len(lines)
         refresh_views(session)
         session.commit()
+        # Fresh tables have no statistics; without them the first dashboard queries pick poor plans.
+        session.execute(text("ANALYZE"))
+        session.commit()
     return report
 
 

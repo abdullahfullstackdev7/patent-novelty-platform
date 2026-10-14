@@ -7,6 +7,7 @@ expect.extend(axeMatchers);
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 

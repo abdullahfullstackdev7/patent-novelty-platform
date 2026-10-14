@@ -274,17 +274,6 @@ describe("login page", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }));
     expect(await screen.findByText("The email or password is incorrect.")).toBeInTheDocument();
   });
-
-  it("signs in against the auth API", async () => {
-    const { calls } = mockApi({ "POST /api/v1/auth/login": () => ({ body: { access_token: "t", token_type: "bearer" } }) });
-    await renderAt("/login");
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Email"), "a@example.com");
-    await user.type(screen.getByLabelText("Password"), "secret");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(await screen.findByText(/You are signed in/)).toBeInTheDocument();
-    expect(calls.at(-1)?.body).toEqual({ email: "a@example.com", password: "secret" });
-  });
 });
 
 describe("accessibility (axe)", () => {

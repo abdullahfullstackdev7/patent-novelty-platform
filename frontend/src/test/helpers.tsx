@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 
 import { AppRoutes } from "@/App";
+import { AuthProvider } from "@/app/auth";
 
 export const PLANS = [
   { code: "starter", name: "Starter", monthly_price: "490.00", included_reports: 15, overage_price: "40.00", seats: 3, extra_seat_price: "49.00" },
@@ -39,9 +40,11 @@ export async function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
-        <AppRoutes />
-      </MemoryRouter>
+      <AuthProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </AuthProvider>
     </QueryClientProvider>,
   );
   // lazy routes show a loading status until their chunk resolves

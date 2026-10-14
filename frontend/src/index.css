@@ -82,3 +82,31 @@
     @apply mb-5 list-disc space-y-2 pl-6 text-lg text-stone-700;
   }
 }
+
+/* Dark theme for the signed-in app: remaps the fixed palette utilities instead of duplicating every class. */
+.dark body { background: #0a1424; color: #e6edf7; }
+.dark .bg-white { background-color: #101c30; }
+.dark .bg-stone-50 { background-color: #0a1424; }
+.dark .bg-stone-100 { background-color: #16253d; }
+.dark .bg-teal-50 { background-color: #0f2a33; }
+.dark .bg-amber-50 { background-color: #33260d; }
+.dark .bg-red-50 { background-color: #3a1613; }
+.dark .bg-green-50 { background-color: #0f2c1e; }
+.dark .bg-navy-50, .dark .hover\:bg-navy-50:hover { background-color: #16253d; }
+.dark .text-navy, .dark h1, .dark h2, .dark h3, .dark h4 { color: #e6edf7; }
+.dark .text-stone-700, .dark .text-stone-600 { color: #c3ccd9; }
+.dark .text-teal-800, .dark .text-teal-700 { color: #6fd0d8; }
+.dark .text-teal-900 { color: #b8e8ec; }
+.dark .border-stone-200, .dark .border-stone-300, .dark .border-navy-300 { border-color: #2a3c58; }
+.dark .shadow-card { box-shadow: none; }
+.dark input, .dark select, .dark textarea { color: #e6edf7; background-color: #0a1424; }
+.dark .bg-navy { background-color: #0e7c86; }
+.dark .text-risk-high { color: #ff8a80; }
+.dark .text-risk-medium { color: #ffb74d; }
+.dark .text-risk-low { color: #6fd29a; }
+
+@media print {
+  aside, header.sticky, .skip-link, nav[aria-label="Breadcrumb"] { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  main { padding: 0 !important; max-width: none !important; }
+}

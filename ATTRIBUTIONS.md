@@ -24,5 +24,5 @@ Firm names, customer stories and team profiles on the website are fictional and 
 
 ## Software
 
-React, React Router, TanStack Query, Tailwind CSS, Radix UI, Framer Motion, react-hook-form, zod and lucide-react, each under its own
+React, React Router, TanStack Query, Tailwind CSS, Radix UI, Framer Motion, Apache ECharts (Apache-2.0), react-hook-form, zod and lucide-react, each under its own
 permissive open-source licence (MIT or ISC).
