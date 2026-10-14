@@ -13,15 +13,11 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db.models import (
     Case,
-    ChartCell,
-    ClaimChart,
-    DisclosureElement,
-    Patent,
     Report,
     ReportVersion,
-    SearchResult,
-    SearchRun,
 )
+from app.pipeline import risk
+from app.pipeline.assessment import cells_by_reference, load_assessment
 from app.security.crypto import open_json, seal_json
 from app.services.disclosures import load_disclosure
 
@@ -51,81 +47,152 @@ def get_or_create_report(session: Session, case_id: uuid.UUID) -> Report:
     return report
 
 
-def build_draft_content(session: Session, settings: Settings, case: Case) -> dict[str, Any]:
-    """Template report from data already stored for the case. The LLM summary replaces the
-    executive summary text in Phase 5, the structure stays the same."""
+def _short(text: str, words: int = 12) -> str:
+    parts = text.split()
+    return text if len(parts) <= words else " ".join(parts[:words]) + " ..."
+
+
+def drafting_considerations(assessment: risk.RiskAssessment, texts: dict[str, str]) -> list[str]:
+    """Questions for the attorney, derived from the chart. Never conclusions."""
+    questions: list[str] = []
+    if assessment.anticipation_reference:
+        questions.append(
+            f"{assessment.anticipation_reference} appears to disclose every element. Should the "
+            "claims be narrowed with a feature it lacks, or is another position available?"
+        )
+    elif assessment.combination:
+        questions.append(
+            f"The combination of {' and '.join(assessment.combination)} appears to cover every "
+            "element. Is there a reason a skilled person would not combine them?"
+        )
+    for row in assessment.per_element:
+        label = f"{row.element} ({_short(texts.get(row.element, ''))})"
+        if row.novel and not row.partial_in:
+            questions.append(
+                f"No charted reference discloses {label}. Is it supported in the specification as "
+                "a distinguishing feature, and should an independent claim recite it?"
+            )
+        elif row.novel:
+            questions.append(
+                f"{label} is only partly disclosed (in {', '.join(row.partial_in)}). Can the claim "
+                "language be drawn to distinguish the partial disclosure?"
+            )
+    questions.append(
+        "Were non-patent literature and foreign patents searched? The index covers only the "
+        "loaded US corpus."
+    )
+    return questions[:8]
+
+
+def template_summary(assessment: risk.RiskAssessment) -> str:
+    uncovered = ", ".join(assessment.uncovered_elements) or "none"
+    return (
+        f"{MACHINE_SUMMARY_NOTE}. Risk assessment: {assessment.label} "
+        f"({assessment.score}/100). {assessment.basis} "
+        f"Elements not disclosed by any charted reference: {uncovered}."
+    )
+
+
+def build_draft_content(
+    session: Session,
+    settings: Settings,
+    case: Case,
+    *,
+    summary: str | None = None,
+    llm_used: bool = False,
+) -> dict[str, Any]:
+    """Report content from the stored chart and risk. Fully deterministic for the same inputs,
+    so an unchanged case yields an identical hash and no new version.
+
+    `summary` is the LLM executive summary when one was produced, otherwise a template text
+    labelled 'Machine summary, no LLM' is used.
+    """
     disclosure = load_disclosure(session, settings, case.id)
     elements = disclosure.elements if disclosure else []
+    texts = {e.key: e.text for e in elements}
+    assessment, references = load_assessment(session, case.id)
+    grouped = cells_by_reference(session, case.id)
 
-    run = session.scalar(
-        select(SearchRun).where(SearchRun.case_id == case.id).order_by(SearchRun.created_at.desc())
-    )
-    references: list[dict[str, Any]] = []
-    if run is not None:
-        rows = session.execute(
-            select(SearchResult, Patent)
-            .join(Patent, Patent.id == SearchResult.patent_id, isouter=True)
-            .where(SearchResult.run_id == run.id, SearchResult.excluded.is_(False))
-            .order_by(SearchResult.rank)
-            .limit(CHART_REFERENCES)
-        ).all()
-        references = [
-            {
-                "patent_id": result.patent_id,
-                "title": patent.title if patent else None,
-                "assignee": patent.assignee if patent else None,
-                "source": patent.source if patent else None,
-                "publication_date": patent.publication_date.isoformat() if patent else None,
-                "score": round(result.score, 4),
-            }
-            for result, patent in rows
-        ]
-
-    coverage: list[dict[str, Any]] = []
-    chart = session.scalar(select(ClaimChart).where(ClaimChart.case_id == case.id))
-    cells: dict[tuple[str, str], str] = {}
-    if chart is not None:
-        keys = {
-            e.id: e.key
-            for e in session.scalars(
-                select(DisclosureElement).where(
-                    DisclosureElement.id.in_(
-                        select(ChartCell.element_id).where(ChartCell.chart_id == chart.id)
-                    )
-                )
-            )
+    ref_rows = [
+        {
+            "rank": ref.rank,
+            "patent_id": ref.patent_id,
+            "title": ref.title,
+            "assignee": ref.assignee,
+            "source": ref.source,
+            "publication_date": ref.publication_date.isoformat() if ref.publication_date else None,
+            "cpc_subclasses": list(ref.cpc_subclasses),
+            "url": ref.url,
+            "score": round(ref.score, 4),
+            "coverage": assessment.coverage.get(ref.patent_id, {}),
         }
-        for cell in session.scalars(select(ChartCell).where(ChartCell.chart_id == chart.id)):
-            cells[(keys.get(cell.element_id, ""), cell.patent_id)] = cell.status
-    for element in elements:
-        coverage.append(
-            {
-                "element": element.key,
-                "text": element.text,
-                "by_reference": {
-                    ref["patent_id"]: cells.get((element.key, ref["patent_id"]), "not_charted")
-                    for ref in references
-                },
-            }
-        )
-
-    summary = (
-        f"{MACHINE_SUMMARY_NOTE}. {len(references)} closest reference(s) retrieved for "
-        f"{len(elements)} disclosure element(s). Risk level: {case.risk_level or 'not assessed'}."
-    )
+        for ref in references
+    ]
+    coverage = [
+        {
+            "element": element.key,
+            "text": element.text,
+            "by_reference": {
+                ref.patent_id: (grouped.get(ref.patent_id, {}).get(element.key).status
+                                if grouped.get(ref.patent_id, {}).get(element.key) else "not_charted")
+                for ref in references
+            },
+        }
+        for element in elements
+    ]  # fmt: skip
+    charts = [
+        {
+            "patent_id": ref.patent_id,
+            "title": ref.title,
+            "cells": [
+                {
+                    "element": element.key,
+                    "status": cell.status,
+                    "confidence": float(cell.confidence),
+                    "method": cell.method,
+                    "passage_id": cell.passage_id,
+                    "excerpt": cell.excerpt,
+                    "char_start": cell.char_start,
+                    "char_end": cell.char_end,
+                    "rationale": cell.rationale,
+                }
+                for element in elements
+                if (cell := grouped.get(ref.patent_id, {}).get(element.key)) is not None
+            ],
+        }
+        for ref in references
+    ]
     return {
         "title": case.title,
-        "generated_by": MACHINE_SUMMARY_NOTE,
-        "executive_summary": summary,
-        "closest_references": references,
+        "generated_by": "LLM-assisted summary" if llm_used and summary else MACHINE_SUMMARY_NOTE,
+        "llm": {"used": bool(llm_used and summary)},
+        "executive_summary": summary or template_summary(assessment),
+        "closest_references": ref_rows,
         "element_coverage": coverage,
+        "charts": charts,
         "risk": {
-            "level": case.risk_level,
-            "score": float(case.risk_score) if case.risk_score is not None else None,
+            "level": assessment.level,
+            "label": assessment.label,
+            "score": assessment.score,
+            "basis": assessment.basis,
+            "anticipation_reference": assessment.anticipation_reference,
+            "combination": assessment.combination,
+            "uncovered_elements": assessment.uncovered_elements,
+            "per_element": [
+                {
+                    "element": r.element,
+                    "disclosed_by": r.disclosed_by,
+                    "partial_in": r.partial_in,
+                    "novel": r.novel,
+                }
+                for r in assessment.per_element
+            ],  # fmt: skip
         },
+        "claim_drafting_considerations": drafting_considerations(assessment, texts),
         "limitations": [
-            "The search covers only the indexed corpus.",
-            "Passage matching is automated and must be confirmed by an attorney.",
+            "The search covers only the indexed corpus, not all prior art.",
+            "Passage matching is automated. Cells marked local or LLM must be confirmed by an attorney.",
+            "Risk levels follow fixed rules over the chart and are not a legal opinion.",
         ],
         "disclaimer": DISCLAIMER,
     }

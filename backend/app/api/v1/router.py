@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, cases, pipeline, reports, users
+from app.api.v1 import admin, analytics, auth, billing, cases, llm, pipeline, public, reports, users
 
 api_router = APIRouter(prefix="/api/v1")
 for module_router in (
@@ -13,5 +13,10 @@ for module_router in (
     admin.billing_router,
     admin.admin_router,
     admin.health_router,
+    billing.router,
+    analytics.router,
+    llm.router,
+    llm.admin_router,
+    public.router,
 ):
     api_router.include_router(module_router)

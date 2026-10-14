@@ -2,6 +2,7 @@
 
 from app.db.models.business import (
     Client,
+    ContactMessage,
     Invoice,
     InvoiceLine,
     Plan,
@@ -22,6 +23,7 @@ from app.db.models.cases import (
     SearchRun,
 )
 from app.db.models.platform import (
+    AppSetting,
     AuditLog,
     Job,
     LlmCache,
@@ -34,12 +36,14 @@ from app.db.models.platform import (
 from app.db.models.reference import Patent, PatentChunk, PatentClaim
 
 __all__ = [
+    "AppSetting",
     "AuditLog",
     "Case",
     "CaseShare",
     "ChartCell",
     "ClaimChart",
     "Client",
+    "ContactMessage",
     "Disclosure",
     "DisclosureElement",
     "Invoice",

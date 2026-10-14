@@ -472,7 +472,9 @@ def test_chart_and_attorney_override_keep_the_original_value(client, auth, sessi
 # ---- report and review lifecycle ----------------------------------------------
 
 
-def test_report_review_approval_lifecycle(client, auth, users, engine, session_factory):
+def test_report_review_approval_lifecycle(
+    client, auth, users, engine, session_factory, monkeypatch
+):
     attorney = auth["attorney"]
     case_id = ready_case(client, attorney)
     base = f"{API}/cases/{case_id}"
@@ -578,7 +580,10 @@ def test_report_review_approval_lifecycle(client, auth, users, engine, session_f
     assert exported.status_code == 200
     assert "attachment" in exported.headers["content-disposition"]
     assert exported.json()["approval"]["content_hash"] == stamp["content_hash"]
-    assert client.post(f"{base}/report/export?format=pdf", headers=attorney).status_code == 501
+    monkeypatch.setattr("app.services.export.html_to_pdf", lambda html: b"%PDF-1.7 stub")
+    pdf = client.post(f"{base}/report/export?format=pdf", headers=attorney)
+    assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+    assert pdf.content.startswith(b"%PDF")
     assert client.post(f"{base}/report/export?format=xml", headers=attorney).status_code == 422
 
     kinds = [e["event_type"] for e in client.get(f"{base}/review", headers=attorney).json()]
@@ -717,12 +722,15 @@ def test_analytics_summary_and_billing_plans(client, auth, session_factory):
     assert summary["cases_by_status"] == {"draft": 1} and summary["users_by_role"]["attorney"] == 1
     assert summary["reports_approved"] == 0
     with session_factory() as session:
-        session.add(Plan(code="starter", name="Starter", monthly_price=490, included_reports=10,
+        session.add(Plan(code="trial", name="Trial", monthly_price=490, included_reports=10,
                          overage_price=45, seats=3))  # fmt: skip
         session.commit()
-    plans = client.get(f"{API}/billing/plans", headers=auth["admin"]).json()
-    assert plans[0]["code"] == "starter" and plans[0]["monthly_price"] == 490.0
-    # restore for other tests: plans are reference data and not truncated by the fixtures
-    with session_factory() as session:
-        session.query(Plan).delete()
-        session.commit()
+    try:
+        plans = client.get(f"{API}/billing/plans", headers=auth["admin"]).json()
+        by_code = {p["code"]: p for p in plans}
+        assert {"starter", "professional", "enterprise"} <= set(by_code)  # seeded by migration 0007
+        assert by_code["trial"]["monthly_price"] == 490.0
+    finally:  # the migration's plans are reference data and stay
+        with session_factory() as session:
+            session.query(Plan).filter(Plan.code == "trial").delete()
+            session.commit()

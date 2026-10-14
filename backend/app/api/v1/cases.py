@@ -28,13 +28,15 @@ from app.api.v1.schemas import (
     DisclosureIn,
     DisclosureOut,
     ElementOut,
+    ExtractOut,
     ShareOut,
     ShareRequest,
     UploadOut,
 )
 from app.db.models import Case, CaseShare, Role, User
+from app.pipeline.intake import extract_elements
 from app.security import policy
-from app.security.http import limiter
+from app.security.http import limiter, llm_limit
 from app.services import audit
 from app.services.access import forbidden, load_case, not_found, visible_cases
 from app.services.disclosures import load_disclosure, save_disclosure
@@ -117,8 +119,10 @@ def create_case(
     session: SessionDep,
     principal: policy.Principal = Depends(require(policy.can_create_case)),
 ) -> CaseOut:
+    owner = session.get(User, principal.id)
     case = Case(
         owner_id=principal.id,
+        client_id=owner.client_id if owner else None,
         title=body.title,
         priority_date=body.priority_date,
         jurisdiction=body.jurisdiction.upper(),
@@ -341,3 +345,75 @@ async def parse_upload(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "File must be UTF-8 text") from None
     safe_name = name.replace("\\", "/").rsplit("/", 1)[-1][:120]
     return UploadOut(filename=safe_name, characters=len(text), text=text)
+
+
+@router.post("/cases/{case_id}/disclosure/extract-elements", response_model=ExtractOut)
+@limiter.limit(llm_limit)
+def extract_disclosure_elements(
+    request: Request,
+    case_id: uuid.UUID,
+    principal: PrincipalDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    replace: bool = Query(default=False, description="Replace elements that already exist"),
+) -> ExtractOut:
+    """Intake checkpoint: derive 6 to 10 elements from the disclosure with one LLM call (or a
+    local fallback in local_only mode). The user reviews and edits them before running."""
+    case, share = load_case(session, principal, case_id)
+    if not policy.can_edit_case(principal, case, share):
+        raise forbidden()
+    ensure_editable(case)
+    if case.status == "running":
+        raise HTTPException(status.HTTP_409_CONFLICT, "The case is running, wait for it to finish")
+    data = load_disclosure(session, settings, case_id)
+    if data is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Save the disclosure first")
+    if data.elements and not replace:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Elements already exist, use replace=true to extract again"
+        )
+    extraction = extract_elements(
+        request.app.state.llm_gateway,
+        title=data.title,
+        technical_field=data.technical_field,
+        problem=data.problem,
+        solution=data.solution,
+        case_id=case.id,
+        case_mode=case.llm_mode,
+    )
+    if not extraction.elements:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "No elements could be derived, please enter the key elements by hand",
+        )
+    save_disclosure(
+        session, settings, case_id,
+        title=data.title, technical_field=data.technical_field,
+        problem=data.problem, solution=data.solution,
+        elements=[(text, extraction.source) for text in extraction.elements],
+    )  # fmt: skip
+    audit.record(
+        session,
+        audit.ELEMENTS_EXTRACTED,
+        user_id=principal.id,
+        ip=ip_of(request),
+        entity_type="case",
+        entity_id=case_id,
+        detail={
+            "source": extraction.source,
+            "count": len(extraction.elements),
+            "used": extraction.tokens,
+        },  # fmt: skip
+    )
+    case.updated_at = datetime.now(UTC)
+    session.commit()
+    saved = load_disclosure(session, settings, case_id)
+    return ExtractOut(
+        elements=[ElementOut(id=e.key, position=e.position, text=e.text, source=e.source)
+                  for e in saved.elements],
+        source=extraction.source,
+        tokens=extraction.tokens,
+        provider=extraction.provider,
+        cache_hit=extraction.cache_hit,
+        fallback_reason=extraction.fallback_reason,
+    )  # fmt: skip

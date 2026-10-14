@@ -25,6 +25,8 @@ from app.api.v1.schemas import (
     JobOut,
     ResultOut,
     ResultsOut,
+    RiskOut,
+    RunOptionsIn,
 )
 from app.db.models import (
     Case,
@@ -38,6 +40,7 @@ from app.db.models import (
     SearchResult,
     SearchRun,
 )
+from app.pipeline.assessment import load_assessment
 from app.security import policy
 from app.security.http import limiter, llm_limit
 from app.services import audit
@@ -68,8 +71,9 @@ def run_case(
     principal: PrincipalDep,
     session: SessionDep,
     settings: SettingsDep,
+    body: RunOptionsIn | None = None,
 ) -> JobOut:
-    """Queue the analysis pipeline. The worker (Phase 5) picks the job up with SKIP LOCKED."""
+    """Queue the analysis pipeline. A worker claims the job with FOR UPDATE SKIP LOCKED."""
     case, share = load_case(session, principal, case_id)
     if not policy.can_run_case(principal, case, share):
         raise forbidden()
@@ -82,7 +86,12 @@ def run_case(
     )
     if active is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "A run is already queued or in progress")
-    job = Job(case_id=case_id, kind="pipeline", status="queued", payload={"case_id": str(case_id)})
+    job = Job(
+        case_id=case_id,
+        kind="pipeline",
+        status="queued",
+        payload={"case_id": str(case_id), "options": (body or RunOptionsIn()).model_dump()},
+    )
     session.add(job)
     case.status = "running"
     case.stage = "queued"
@@ -199,7 +208,8 @@ def _cell_out(cell: ChartCell, key: str) -> CellOut:
     return CellOut(
         id=cell.id, element=key, patent_id=cell.patent_id, status=cell.status,
         confidence=float(cell.confidence), passage_id=cell.passage_id, excerpt=cell.excerpt,
-        rationale=cell.rationale, method=cell.method, overridden=cell.overridden_at is not None,
+        rationale=cell.rationale, method=cell.method, char_start=cell.char_start,
+        char_end=cell.char_end, overridden=cell.overridden_at is not None,
         original=cell.original, override_reason=cell.override_reason,
     )  # fmt: skip
 
@@ -281,3 +291,41 @@ def override_cell(
     session.commit()
     element = session.get(DisclosureElement, cell.element_id)
     return _cell_out(cell, element.key if element else "")
+
+
+@router.get("/cases/{case_id}/risk", response_model=RiskOut)
+def risk_report(case_id: uuid.UUID, principal: PrincipalDep, session: SessionDep) -> RiskOut:
+    """Deterministic novelty and obviousness assessment computed from the stored chart."""
+    load_case(session, principal, case_id)
+    assessment, references = load_assessment(session, case_id)
+    charted = bool(references)
+    return RiskOut(
+        level=assessment.level if charted else None,
+        label=assessment.label if charted else None,
+        score=assessment.score if charted else None,
+        basis=assessment.basis,
+        anticipation_reference=assessment.anticipation_reference,
+        combination=assessment.combination,
+        shared_subclasses=assessment.shared_subclasses,
+        uncovered_elements=assessment.uncovered_elements,
+        per_element=[
+            {
+                "element": r.element,
+                "disclosed_by": r.disclosed_by,
+                "partial_in": r.partial_in,
+                "novel": r.novel,
+            }
+            for r in assessment.per_element
+        ],  # fmt: skip
+        coverage=assessment.coverage,
+        references=[
+            {
+                "patent_id": r.patent_id,
+                "rank": r.rank,
+                "title": r.title,
+                "source": r.source,
+                "cpc_subclasses": list(r.cpc_subclasses),
+            }
+            for r in references
+        ],  # fmt: skip
+    )

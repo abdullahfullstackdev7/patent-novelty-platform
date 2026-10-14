@@ -24,6 +24,7 @@ from app.api.v1.schemas import (
 from app.db.models import Case, Report, ReportVersion, ReviewEvent, Role, User
 from app.security import policy
 from app.services import audit
+from app.services import export as export_service
 from app.services import reports as report_service
 from app.services.access import forbidden, load_case, not_found
 
@@ -173,13 +174,10 @@ def export_report(
     settings: SettingsDep,
     format: str = Query(default="json", pattern="^(json|pdf)$"),
 ) -> Response:
+    """Export the current report version as JSON or as a PDF (cover, tables, highlighted excerpts)."""
     case, share = load_case(session, principal, case_id)
     if not policy.can_export_case(principal, case, share):
         raise forbidden()
-    if format == "pdf":
-        raise HTTPException(
-            status.HTTP_501_NOT_IMPLEMENTED, "PDF export is delivered with the pipeline in Phase 5"
-        )
     report = _require_report(session, case_id)
     version = report_service.get_version(session, report)
     payload = {
@@ -190,19 +188,30 @@ def export_report(
         "content_hash": version.content_hash,
         "approval": _approval(session, version),
         "content": report_service.read_content(settings, version),
-        "exported_at": datetime.now(UTC).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
+    filename = f"report-{case.id}-v{version.version}"
+    if format == "pdf":
+        try:
+            pdf = export_service.html_to_pdf(export_service.render_report_html(payload))
+        except export_service.PdfUnavailable:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE, "PDF rendering is not available on this server"
+            ) from None
+        response: Response = Response(
+            pdf, media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+        )  # fmt: skip
+    else:
+        response = JSONResponse(
+            payload, headers={"Content-Disposition": f'attachment; filename="{filename}.json"'}
+        )
     audit.record(
         session, audit.EXPORT, user_id=principal.id, ip=ip_of(request),
-        entity_type="case", entity_id=case_id, detail={"format": "json", "version": version.version},
+        entity_type="case", entity_id=case_id, detail={"format": format, "version": version.version},
     )  # fmt: skip
     session.commit()
-    return JSONResponse(
-        payload,
-        headers={
-            "Content-Disposition": f'attachment; filename="report-{case.id}-v{version.version}.json"'
-        },
-    )
+    return response
 
 
 # ---- review -------------------------------------------------------------------

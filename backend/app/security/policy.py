@@ -53,11 +53,21 @@ def can_view_billing(user: Principal) -> bool:
     return user.role == ADMIN
 
 
+def can_manage_billing(user: Principal) -> bool:
+    """Clients, subscriptions and invoices."""
+    return user.role == ADMIN
+
+
 def can_view_audit_log(user: Principal) -> bool:
     return user.role == ADMIN
 
 
 def can_run_retention_purge(user: Principal) -> bool:
+    return user.role == ADMIN
+
+
+def can_manage_llm(user: Principal) -> bool:
+    """LLM mode, model selection, quota view and breaker reset."""
     return user.role == ADMIN
 
 

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.api.v1.router import api_router
 from app.config import Settings, get_settings
 from app.db.session import make_engine, make_session_factory
+from app.llm.factory import build_gateway
 from app.security.http import (
     BodyLimitMiddleware,
     DefaultRateLimitMiddleware,
@@ -67,6 +68,7 @@ def create_app(
         make_engine(settings.database_url)
     )
     app.state.limiter = limiter
+    app.state.llm_gateway = build_gateway(settings, app.state.session_factory)
 
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

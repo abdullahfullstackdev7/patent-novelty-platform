@@ -44,6 +44,7 @@ def user_out(user: User, role: str) -> UserOut:
         email=user.email,
         full_name=user.full_name,
         role=role,
+        client_id=user.client_id,
         is_active=user.is_active,
         totp_enabled=user.totp_enabled,
         last_login_at=user.last_login_at,

@@ -59,6 +59,7 @@ class Case(Base):
     llm_mode: Mapped[str] = mapped_column(String(16), nullable=False, server_default="auto")
     confidential: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     retention_days: Mapped[int | None] = mapped_column(Integer)
+    is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -126,7 +127,7 @@ class DisclosureElement(Base):
 
     __table_args__ = (
         UniqueConstraint("disclosure_id", "key", name="uq_disclosure_elements_disclosure_id_key"),
-        CheckConstraint("source IN ('user', 'llm')", name="source_valid"),
+        CheckConstraint("source IN ('user', 'llm', 'local')", name="source_valid"),
     )
 
 
@@ -197,6 +198,11 @@ class ChartCell(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False)
     passage_id: Mapped[str | None] = mapped_column(Text)
     excerpt: Mapped[str | None] = mapped_column(Text)
+    # Offsets of the excerpt inside the text of chunk `passage_id`, for highlighting.
+    char_start: Mapped[int | None] = mapped_column(Integer)
+    char_end: Mapped[int | None] = mapped_column(Integer)
+    # Hash of everything the cell was computed from. A rerun skips cells whose hash is unchanged.
+    input_hash: Mapped[str | None] = mapped_column(String(64))
     rationale: Mapped[str | None] = mapped_column(Text)
     method: Mapped[str] = mapped_column(String(8), nullable=False)
     original: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

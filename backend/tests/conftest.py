@@ -32,6 +32,7 @@ TEST_ENV = {
     "RATE_LIMIT_DEFAULT": "100000/minute",
     "RATE_LIMIT_AUTH": "100000/minute",
     "RATE_LIMIT_LLM": "100000/minute",
+    "RATE_LIMIT_CONTACT": "5/hour",
     "ARGON2_TIME_COST": "1",
     "ARGON2_MEMORY_KIB": "8192",
     "ARGON2_PARALLELISM": "1",
@@ -258,7 +259,11 @@ ROLE_USERS = {
 @pytest.fixture
 def settings(database_url: str):
     get_settings.cache_clear()
-    return get_settings()
+    loaded = get_settings()
+    # Tests never talk to a real LLM provider, whatever the developer has in the environment.
+    loaded.groq_api_key = ""
+    loaded.gemini_api_key = ""
+    return loaded
 
 
 @pytest.fixture(autouse=True)

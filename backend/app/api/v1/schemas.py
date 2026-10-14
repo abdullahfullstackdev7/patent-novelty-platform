@@ -48,6 +48,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: str
+    client_id: uuid.UUID | None = None
     is_active: bool
     totp_enabled: bool
     last_login_at: datetime | None
@@ -94,6 +95,7 @@ class InviteRequest(CleanText):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=200)
     role: RoleName
+    client_id: uuid.UUID | None = None
 
 
 class InviteResponse(BaseModel):
@@ -104,6 +106,7 @@ class InviteResponse(BaseModel):
 
 class UserUpdate(CleanText):
     role: RoleName | None = None
+    client_id: uuid.UUID | None = None
     is_active: bool | None = None
     full_name: str | None = Field(default=None, min_length=1, max_length=200)
 
@@ -182,7 +185,7 @@ class ShareOut(BaseModel):
 
 class ElementIn(CleanText):
     text: str = Field(min_length=1, max_length=1000)
-    source: Literal["user", "llm"] = "user"
+    source: Literal["user", "llm", "local"] = "user"
 
 
 class DisclosureIn(CleanText):
@@ -228,6 +231,34 @@ class JobOut(BaseModel):
     updated_at: datetime
 
 
+class RunOptionsIn(StrictModel):
+    references: int = Field(default=3, ge=1, le=5, description="References to chart")
+    force_search: bool = Field(default=False, description="Search again even if nothing changed")
+
+
+class ExtractOut(BaseModel):
+    elements: list[ElementOut]
+    source: str  # llm | local
+    tokens: int
+    provider: str | None
+    cache_hit: bool
+    fallback_reason: str | None
+
+
+class RiskOut(BaseModel):
+    level: str | None
+    label: str | None
+    score: int | None
+    basis: str
+    anticipation_reference: str | None
+    combination: list[str]
+    shared_subclasses: list[str]
+    uncovered_elements: list[str]
+    per_element: list[dict[str, Any]]
+    coverage: dict[str, dict[str, int]]
+    references: list[dict[str, Any]]
+
+
 class ResultOut(BaseModel):
     rank: int
     patent_id: str
@@ -261,6 +292,8 @@ class CellOut(BaseModel):
     excerpt: str | None
     rationale: str | None
     method: str
+    char_start: int | None = None
+    char_end: int | None = None
     overridden: bool
     original: dict[str, Any] | None
     override_reason: str | None
@@ -340,3 +373,4 @@ class PlanOut(BaseModel):
     included_reports: int
     overage_price: float
     seats: int
+    extra_seat_price: float = 0.0

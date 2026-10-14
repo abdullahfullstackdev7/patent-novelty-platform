@@ -35,10 +35,14 @@ def _role_name(session, user: User) -> str:
 
 
 @router.get("", response_model=list[UserOut])
-def list_users(session: SessionDep, _: Principal = AdminDep) -> list[UserOut]:
-    rows = session.execute(
-        select(User, Role.name).join(Role, Role.id == User.role_id).order_by(User.created_at)
-    ).all()
+def list_users(
+    session: SessionDep, _: Principal = AdminDep, include_demo: bool = False
+) -> list[UserOut]:
+    """Real users. Seeded demo users are hidden unless include_demo=true."""
+    query = select(User, Role.name).join(Role, Role.id == User.role_id).order_by(User.created_at)
+    if not include_demo:
+        query = query.where(User.is_demo.is_(False))
+    rows = session.execute(query).all()
     return [user_out(user, role) for user, role in rows]
 
 
@@ -60,6 +64,7 @@ def invite_user(
         email=body.email.lower(),
         full_name=body.full_name,
         role_id=_role_id(session, body.role),
+        client_id=body.client_id,
         password_hash=None,
     )
     session.add(user)
@@ -100,6 +105,8 @@ def update_user(
     ip = ip_of(request)
     if body.full_name is not None:
         user.full_name = body.full_name
+    if "client_id" in body.model_fields_set:
+        user.client_id = body.client_id
     if body.role is not None and body.role != previous_role:
         user.role_id = _role_id(session, body.role)
         audit.record(

@@ -27,6 +27,11 @@ DISCLOSURE = {
     "elements": [{"text": "An element"}, {"text": "Another element"}],
 }
 UPLOAD = {"file": ("note.md", b"# Notes\nsome text", "text/markdown")}
+LLM_SETTINGS = {
+    "mode": "auto",
+    "groq_model": "openai/gpt-oss-20b",
+    "gemini_model": "gemini-3.1-flash-lite",
+}
 
 
 @dataclass
@@ -171,20 +176,73 @@ ROWS = [
         json={"comment": "Please revisit element 2"},
         prepare="in_review",
     ),
+    Row(
+        "extract elements",
+        "POST",
+        "/cases/{case_id}/disclosure/extract-elements",
+        EDIT_CASE,
+        params={"replace": "true"},
+        prepare="draft",
+    ),
+    Row("risk", "GET", "/cases/{case_id}/risk", READ_CASE),
     Row("analytics", "GET", "/analytics/summary", ADMIN_ONLY),
     Row("billing plans", "GET", "/billing/plans", ADMIN_ONLY),
     Row("audit log", "GET", "/admin/audit", ADMIN_ONLY),
     Row("retention purge", "POST", "/admin/retention/purge", ADMIN_ONLY),
+    Row("llm mode", "GET", "/llm/mode", codes(200, 200, 200, 200)),
+    Row("llm status", "GET", "/admin/llm/status", ADMIN_ONLY),
+    Row("llm settings", "GET", "/admin/llm/settings", ADMIN_ONLY),
+    Row(
+        "llm settings update",
+        "PUT",
+        "/admin/llm/settings",
+        codes(200, 403, 403, 403),
+        json=LLM_SETTINGS,
+    ),
+    Row("llm breaker reset", "POST", "/admin/llm/breakers/reset", codes(204, 403, 403, 403)),
+    Row("/analytics/revenue/summary", "GET", "/analytics/revenue/summary", ADMIN_ONLY),
+    Row("/analytics/revenue/timeseries", "GET", "/analytics/revenue/timeseries", ADMIN_ONLY),
+    Row("/analytics/revenue/breakdown", "GET", "/analytics/revenue/breakdown", ADMIN_ONLY),
+    Row("/analytics/revenue/mrr-walk", "GET", "/analytics/revenue/mrr-walk", ADMIN_ONLY),
+    Row("/analytics/revenue/aging", "GET", "/analytics/revenue/aging", ADMIN_ONLY),
+    Row("/analytics/revenue/cohorts", "GET", "/analytics/revenue/cohorts", ADMIN_ONLY),
+    Row("/analytics/revenue/margin", "GET", "/analytics/revenue/margin", ADMIN_ONLY),
+    Row("/analytics/ops/timeseries", "GET", "/analytics/ops/timeseries", ADMIN_ONLY),
+    Row("/analytics/ops/funnel", "GET", "/analytics/ops/funnel", ADMIN_ONLY),
+    Row("/analytics/ops/risk", "GET", "/analytics/ops/risk", ADMIN_ONLY),
+    Row("/analytics/ops/cpc", "GET", "/analytics/ops/cpc", ADMIN_ONLY),
+    Row("/analytics/ops/turnaround", "GET", "/analytics/ops/turnaround", ADMIN_ONLY),
+    Row("/analytics/ops/attorneys", "GET", "/analytics/ops/attorneys", ADMIN_ONLY),
+    Row("/analytics/ops/latency", "GET", "/analytics/ops/latency", ADMIN_ONLY),
+    Row("/analytics/ops/backlog", "GET", "/analytics/ops/backlog", ADMIN_ONLY),
+    Row("/analytics/llm/tokens", "GET", "/analytics/llm/tokens", ADMIN_ONLY),
+    Row("/analytics/llm/efficiency", "GET", "/analytics/llm/efficiency", ADMIN_ONLY),
+    Row("/analytics/llm/cost", "GET", "/analytics/llm/cost", ADMIN_ONLY),
+    Row("billing clients", "GET", "/billing/clients", ADMIN_ONLY),
+    Row("billing client", "GET", "/billing/clients/{zero_id}", codes(404, 403, 403, 403)),
+    Row("billing invoices", "GET", "/billing/invoices", ADMIN_ONLY),
+    Row("billing invoice", "GET", "/billing/invoices/{zero_id}", codes(404, 403, 403, 403)),
 ]
 
 # Routes that are public by design or only need a valid login. Covered by test_auth_api.
 PUBLIC = {
     ("POST", "/auth/login"), ("POST", "/auth/refresh"), ("POST", "/auth/logout"),
-    ("POST", "/auth/accept-invite"),
+    ("POST", "/auth/accept-invite"), ("GET", "/public/plans"), ("GET", "/public/stats"),
+    ("POST", "/public/contact"),
 }  # fmt: skip
 LOGIN_ONLY = {
     ("POST", "/auth/change-password"), ("POST", "/auth/totp/setup"),
     ("POST", "/auth/totp/enable"), ("POST", "/auth/totp/disable"),
+}  # fmt: skip
+
+
+# Billing writes need real ledger state to succeed, so the sweep here only proves who is turned away.
+BILLING_WRITES = {
+    ("POST", "/billing/clients"), ("PUT", "/billing/clients/{}/subscription"),
+    ("DELETE", "/billing/clients/{}/subscription"), ("POST", "/billing/invoices/generate"),
+    ("POST", "/billing/invoices/mark-overdue"), ("POST", "/billing/invoices/{}/issue"),
+    ("POST", "/billing/invoices/{}/pay"), ("POST", "/billing/invoices/{}/void"),
+    ("POST", "/billing/refresh"),
 }  # fmt: skip
 
 
@@ -195,7 +253,7 @@ class World:
         self.client, self.auth, self.users = client, auth, users
         self.sessions, self.settings = session_factory, settings
         self.counter = itertools.count()
-        self.vars: dict[str, str] = {"analyst2_id": str(users["analyst2"].id)}
+        self.vars: dict[str, str] = {"analyst2_id": str(users["analyst2"].id), "zero_id": str(uuid.UUID(int=0))}
 
         created = client.post(
             f"{API}/cases", json={"title": "Matrix case"}, headers=auth["attorney"]
@@ -337,8 +395,8 @@ def test_matrix_covers_every_route(app):
         return re.sub(r"\{[^}]+\}", "{}", path)
 
     routes = openapi_routes(app)
-    assert len(routes) >= 40, "route discovery returned too few operations"
-    covered = {(row.method, norm(row.path)) for row in ROWS} | PUBLIC | LOGIN_ONLY
+    assert len(routes) >= 48, "route discovery returned too few operations"
+    covered = {(row.method, norm(row.path)) for row in ROWS} | PUBLIC | LOGIN_ONLY | BILLING_WRITES
     assert routes - covered == set(), f"routes without a matrix entry: {sorted(routes - covered)}"
     assert covered - routes == set(), f"matrix rows without a route: {sorted(covered - routes)}"
 
@@ -373,3 +431,15 @@ def test_every_non_public_endpoint_rejects_anonymous_callers(app, client):
             assert response.status_code == 401, f"{method.upper()} {path} -> {response.status_code}"
             checked += 1
     assert checked >= 30
+
+
+def test_billing_writes_turn_away_everyone_but_the_admin(client, auth):
+    for method, template in sorted(BILLING_WRITES):
+        path = API + template.replace("{}", "00000000-0000-0000-0000-000000000000")
+        for identity in ("anonymous", "attorney", "analyst", "viewer"):
+            headers = {} if identity == "anonymous" else auth[identity]
+            response = client.request(method, path, json={}, headers=headers)
+            expected = 401 if identity == "anonymous" else 403
+            assert response.status_code == expected, (identity, method, template, response.text)
+        admin = client.request(method, path, json={}, headers=auth["admin"])
+        assert admin.status_code not in (401, 403), (method, template, admin.text)

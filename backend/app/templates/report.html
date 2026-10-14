@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ payload.title }} - Prior-art report</title>
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+    @bottom-left { content: "PriorArt Atlas"; font: 8pt Helvetica, Arial, sans-serif; color: #5b6472; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Helvetica, Arial, sans-serif; color: #5b6472; }
+  }
+  @page :first { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+  :root { --navy: #0B1F3A; --teal: #0E7C86; --ink: #1c2430; --muted: #5b6472; --line: #d5dae1; }
+  body { font: 10pt/1.45 Helvetica, Arial, sans-serif; color: var(--ink); }
+  h1, h2, h3 { color: var(--navy); line-height: 1.2; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 1.5pt solid var(--teal); padding-bottom: 3pt; }
+  h3 { font-size: 11pt; margin: 12pt 0 4pt; }
+  .cover { page-break-after: always; height: 297mm; background: var(--navy); color: #fff; padding: 40mm 22mm; box-sizing: border-box; }
+  .cover h1 { color: #fff; font-size: 26pt; margin: 0 0 8pt; }
+  .cover .kicker { color: #8fd3d9; letter-spacing: 1.5pt; text-transform: uppercase; font-size: 9pt; }
+  .cover dl { margin-top: 36pt; font-size: 10pt; }
+  .cover dt { color: #8fd3d9; font-size: 8pt; text-transform: uppercase; margin-top: 10pt; }
+  .cover dd { margin: 2pt 0 0; }
+  .badge { display: inline-block; padding: 2pt 8pt; border-radius: 3pt; font-weight: bold; border: 1pt solid currentColor; }
+  .risk-high { color: #b3261e; } .risk-medium_high { color: #b45309; } .risk-medium { color: #92620a; } .risk-low { color: #1b6e3c; }
+  .cover .badge { background: #fff; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; page-break-inside: auto; }
+  th, td { border: 0.6pt solid var(--line); padding: 4pt 5pt; text-align: left; vertical-align: top; }
+  th { background: #eef2f6; color: var(--navy); font-size: 9pt; }
+  tr { page-break-inside: avoid; }
+  .status { font-weight: bold; white-space: nowrap; }
+  .status-disclosed { color: #b3261e; } .status-partial { color: #92620a; } .status-not_found { color: #1b6e3c; } .status-not_charted { color: var(--muted); }
+  .muted { color: var(--muted); } .mono { font-family: "Courier New", monospace; font-size: 8.5pt; }
+  mark { background: #fde68a; padding: 0 1pt; }
+  blockquote { margin: 3pt 0 0; padding-left: 6pt; border-left: 2pt solid var(--teal); }
+  .disclaimer { margin-top: 20pt; padding: 8pt; border: 0.8pt solid var(--line); background: #f6f8fa; font-size: 9pt; }
+  ul.questions { padding-left: 14pt; } ul.questions li { margin-bottom: 4pt; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">Prior-art search and novelty report</div>
+  <h1>{{ payload.title }}</h1>
+  <div>
+    <span class="badge risk-{{ content.risk.level or 'low' }}">
+      {{ content.risk.level | risk_label }}{% if content.risk.score is not none %} ({{ content.risk.score }}/100){% endif %}
+    </span>
+  </div>
+  <dl>
+    <dt>Report state</dt><dd>{{ payload.state | replace('_', ' ') | capitalize }}, version {{ payload.version }}</dd>
+    <dt>Content hash</dt><dd class="mono">{{ payload.content_hash }}</dd>
+    {% if payload.approval %}
+    <dt>Approved</dt>
+    <dd>{{ payload.approval.approved_by }} ({{ payload.approval.role }}), {{ payload.approval.approved_at }}</dd>
+    {% else %}
+    <dt>Approval</dt><dd>Not approved. Draft for attorney review.</dd>
+    {% endif %}
+    <dt>Generated</dt><dd>{{ payload.exported_at }}</dd>
+    <dt>Summary source</dt><dd>{{ content.generated_by }}</dd>
+  </dl>
+</section>
+
+<h2>Executive summary</h2>
+<p>{{ content.executive_summary }}</p>
+
+<h2>Closest references</h2>
+{% if content.closest_references %}
+<table>
+  <tr><th>#</th><th>Reference</th><th>Source</th><th>Published</th><th>Disclosed</th><th>Partial</th><th>Not found</th></tr>
+  {% for ref in content.closest_references %}
+  <tr>
+    <td>{{ ref.rank }}</td>
+    <td><strong class="mono">{{ ref.patent_id }}</strong><br>{{ ref.title or '' }}{% if ref.assignee %}<br><span class="muted">{{ ref.assignee }}</span>{% endif %}</td>
+    <td>{{ ref.source or '' }}</td>
+    <td>{{ ref.publication_date or '' }}</td>
+    <td>{{ ref.coverage.get('disclosed', 0) }}</td>
+    <td>{{ ref.coverage.get('partial', 0) }}</td>
+    <td>{{ ref.coverage.get('not_found', 0) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">No reference was charted.</p>
+{% endif %}
+
+<h2>Element coverage matrix</h2>
+{% set refs = content.closest_references %}
+<table>
+  <tr><th>Element</th>{% for ref in refs %}<th class="mono">{{ ref.patent_id }}</th>{% endfor %}</tr>
+  {% for row in content.element_coverage %}
+  <tr>
+    <td><strong>{{ row.element }}</strong> {{ row.text }}</td>
+    {% for ref in refs %}
+    {% set status = row.by_reference.get(ref.patent_id, 'not_charted') %}
+    <td class="status status-{{ status }}">{{ status | status_symbol }} {{ status | status_label }}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+<p class="muted">Status is shown as text and symbol, not by colour alone. [+] disclosed, [~] partial, [-] not found.</p>
+
+<h2>Novelty and obviousness risk</h2>
+<p><span class="badge risk-{{ content.risk.level or 'low' }}">{{ content.risk.level | risk_label }}{% if content.risk.score is not none %} {{ content.risk.score }}/100{% endif %}</span></p>
+<p>{{ content.risk.basis }}</p>
+{% if content.risk.uncovered_elements %}
+<p><strong>Possible points of novelty</strong> (disclosed by no charted reference): {{ content.risk.uncovered_elements | join(', ') }}.</p>
+{% endif %}
+
+<h2>Claim chart</h2>
+{% for chart in content.charts %}
+<h3><span class="mono">{{ chart.patent_id }}</span> {{ chart.title or '' }}</h3>
+<table>
+  <tr><th>Element</th><th>Status</th><th>Evidence from the reference</th></tr>
+  {% for cell in chart.cells %}
+  <tr>
+    <td><strong>{{ cell.element }}</strong> {{ element_text.get(cell.element, '') }}</td>
+    <td class="status status-{{ cell.status }}">{{ cell.status | status_symbol }} {{ cell.status | status_label }}<br>
+      <span class="muted">{{ cell.confidence | percent }}, {{ cell.method }}</span></td>
+    <td>
+      {% if cell.excerpt %}<blockquote>{{ cell.excerpt | highlight(element_text.get(cell.element)) }}</blockquote>
+      <span class="muted mono">{{ cell.passage_id }}</span>{% endif %}
+      {% if cell.rationale %}<div class="muted">{{ cell.rationale }}</div>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<h2>Considerations for claim drafting</h2>
+<p class="muted">Questions for the attorney, not conclusions.</p>
+<ul class="questions">
+  {% for question in content.claim_drafting_considerations %}<li>{{ question }}</li>{% endfor %}
+</ul>
+
+<h2>Limitations</h2>
+<ul>{% for item in content.limitations %}<li>{{ item }}</li>{% endfor %}</ul>
+
+<div class="disclaimer"><strong>Disclaimer.</strong> {{ content.disclaimer }}</div>
+
+</body>
+</html>

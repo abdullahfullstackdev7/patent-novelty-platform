@@ -138,3 +138,7 @@ def auth_limit() -> str:
 
 def llm_limit() -> str:
     return get_settings().rate_limit_llm
+
+
+def contact_limit() -> str:
+    return get_settings().rate_limit_contact

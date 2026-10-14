@@ -35,6 +35,7 @@ class Client(Base):
     industry: Mapped[str] = mapped_column(String(64), nullable=False)
     region: Mapped[str] = mapped_column(String(64), nullable=False)
     segment: Mapped[str | None] = mapped_column(String(64))
+    is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     signed_up_on: Mapped[date] = mapped_column(
         Date, nullable=False, server_default=func.current_date()
     )
@@ -53,6 +54,9 @@ class Plan(Base):
     included_reports: Mapped[int] = mapped_column(Integer, nullable=False)
     overage_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     seats: Mapped[int] = mapped_column(Integer, nullable=False)
+    extra_seat_price: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, server_default="0"
+    )
 
 
 class Subscription(Base):
@@ -134,4 +138,24 @@ class UsageEvent(Base):
     __table_args__ = (
         Index("ix_usage_events_client_id_occurred_at", "client_id", "occurred_at"),
         Index("ix_usage_events_event_type_occurred_at", "event_type", "occurred_at"),
+    )
+
+
+class ContactMessage(Base):
+    """A message sent through the public contact form (demo requests and general questions)."""
+
+    __tablename__ = "contact_messages"
+    __table_args__ = (
+        CheckConstraint("topic IN ('demo', 'sales', 'support', 'other')", name="topic_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), **UUID_PK)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    organization: Mapped[str | None] = mapped_column(String(200))
+    topic: Mapped[str] = mapped_column(String(16), nullable=False, server_default="demo")
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

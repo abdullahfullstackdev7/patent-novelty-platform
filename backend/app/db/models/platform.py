@@ -48,6 +48,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     totp_secret: Mapped[str | None] = mapped_column(Text)  # Fernet token
     totp_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     failed_login_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -144,7 +145,7 @@ class LlmCache(Base):
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     task: Mapped[str] = mapped_column(String(64), nullable=False)
-    schema_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     response: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     tokens_in: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     tokens_out: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -206,4 +207,20 @@ class UserToken(Base):
     __table_args__ = (
         CheckConstraint("purpose IN ('invite', 'reset')", name="purpose_valid"),
         Index("ix_user_tokens_user_id", "user_id"),
+    )
+
+
+class AppSetting(Base):
+    """Small key/value store for settings an administrator changes at runtime (LLM mode and
+    model ids). Environment variables are the defaults, a row here overrides them."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

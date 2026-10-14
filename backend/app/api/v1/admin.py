@@ -49,6 +49,7 @@ def list_plans(
             id=p.id, code=p.code, name=p.name, monthly_price=float(p.monthly_price),
             included_reports=p.included_reports, overage_price=float(p.overage_price),
             seats=p.seats,
+            extra_seat_price=float(p.extra_seat_price),
         )
         for p in plans
     ]  # fmt: skip

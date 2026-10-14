@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 214 68% 14%;
+    --muted: 40 14% 96%;
+    --muted-foreground: 40 4% 36%;
+    --border: 40 12% 88%;
+    --ring: 184 85% 28%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white font-sans text-base text-navy antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-tight text-navy;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-teal-600 ring-offset-2 ring-offset-white;
+  }
+
+  /* Dark surfaces need a light ring to stay visible. */
+  .on-dark :focus-visible {
+    @apply ring-white ring-offset-navy;
+  }
+
+  ::selection {
+    @apply bg-teal-100 text-navy;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply absolute left-4 top-2 z-[100] -translate-y-24 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white focus:translate-y-0;
+  }
+
+  .eyebrow {
+    @apply mb-3 text-sm font-semibold uppercase tracking-wider text-teal-700;
+  }
+
+  .mesh {
+    background-image: radial-gradient(60% 80% at 85% 10%, rgb(14 124 134 / 0.16), transparent 60%),
+      radial-gradient(50% 60% at 5% 90%, rgb(11 31 58 / 0.08), transparent 65%),
+      linear-gradient(180deg, #f6f9fb 0%, #ffffff 100%);
+  }
+
+  .prose-article p {
+    @apply mb-5 text-lg leading-relaxed text-stone-700;
+  }
+  .prose-article h2 {
+    @apply mb-3 mt-10 text-xl;
+  }
+  .prose-article ul {
+    @apply mb-5 list-disc space-y-2 pl-6 text-lg text-stone-700;
+  }
+}

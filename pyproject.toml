@@ -26,6 +26,8 @@ pythonpath = ["scripts"]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/update_dataset_readme.py" = ["E501"]
+"scripts/run_samples.py" = ["E501"]
+"scripts/seed_business_data.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

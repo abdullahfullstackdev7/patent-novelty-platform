@@ -36,6 +36,17 @@ APPROVE = "approve"
 REQUEST_CHANGES = "request_changes"
 CELL_OVERRIDE = "cell_override"
 RETENTION_PURGE = "retention_purge"
+ELEMENTS_EXTRACTED = "elements_extracted"
+BILLING_CLIENT_CREATE = "billing_client_create"
+SUBSCRIPTION_CHANGE = "subscription_change"
+SUBSCRIPTION_CANCEL = "subscription_cancel"
+INVOICES_GENERATED = "invoices_generated"
+INVOICE_ISSUED = "invoice_issued"
+INVOICE_PAID = "invoice_paid"
+INVOICE_VOIDED = "invoice_voided"
+BILLING_REFRESH = "billing_refresh"
+LLM_SETTINGS_CHANGE = "llm_settings_change"
+LLM_BREAKER_RESET = "llm_breaker_reset"
 
 _SENSITIVE = ("password", "token", "secret", "text", "problem", "solution", "content", "field")
 MAX_DETAIL_VALUE = 200

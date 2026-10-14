@@ -10,6 +10,9 @@ REDACTED = "[REDACTED]"
 
 _JWT = re.compile(r"eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
 _FERNET = re.compile(r"gAAAA[A-Za-z0-9_\-=]{20,}")
+_API_KEY = re.compile(
+    r"(?<![A-Za-z0-9])(?:gsk_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,})"
+)
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 _KEY_VALUE = re.compile(
     r"""(?ix)
@@ -26,6 +29,7 @@ _KEY_VALUE = re.compile(
 def redact(text: str) -> str:
     text = _JWT.sub(REDACTED, text)
     text = _FERNET.sub(REDACTED, text)
+    text = _API_KEY.sub(REDACTED, text)
     text = _BEARER.sub(f"Bearer {REDACTED}", text)
     return _KEY_VALUE.sub(lambda m: f"{m['key']}{m['sep']}{m['quote']}{REDACTED}", text)
 
