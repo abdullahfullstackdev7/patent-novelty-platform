@@ -136,3 +136,45 @@ def test_expected_case_stays_well_under_the_nine_thousand_token_target():
     medians.sort()
     assert medians[len(medians) // 2] < 9000
     assert max(medians) < 12000
+
+
+def case_tokens(data: dict, references: int, ambiguous_share: float) -> int:
+    """Estimated tokens for one case, from the real prompt sizes (same method as the test above)."""
+    n = len(data["elements"])
+    ambiguous = max(1, round(n * ambiguous_share))
+    passage = " ".join(["word"] * S.pipeline_passage_words)
+    user = prompts.parse_elements_user(data["title"], data["technical_field"], data["problem"], data["solution"])
+    total = estimate_tokens(prompts.PARSE_ELEMENTS.system) + estimate_tokens(user) + 40 * n
+    items = [{"e": f"E{i}", "t": data["elements"][i - 1]["text"],
+              "ps": [{"id": f"E{i}.{k}", "t": passage} for k in (1, 2)]}
+             for i in range(1, ambiguous + 1)]  # fmt: skip
+    total += references * (estimate_tokens(prompts.CHART_CELLS.system)
+                           + estimate_tokens(prompts.chart_cells_user("US1", items)) + 45 * ambiguous)  # fmt: skip
+    facts = {"risk": "low", "score": 20, "refs": [f"US{i}" for i in range(references)],
+             "elements": [{"e": f"E{i}", "disclosed_by": ["US1"], "partial_in": ["US2"]} for i in range(1, n + 1)]}  # fmt: skip
+    return total + estimate_tokens(prompts.EXEC_SUMMARY.system) + estimate_tokens(prompts.exec_summary_user(facts)) + 450
+
+
+def p95(values: list[int]) -> float:
+    ordered = sorted(values)
+    index = 0.95 * (len(ordered) - 1)
+    low = int(index)
+    return ordered[low] + (ordered[min(low + 1, len(ordered) - 1)] - ordered[low]) * (index - low)
+
+
+def test_token_budget_median_and_p95_across_the_eight_samples():
+    totals = [case_tokens(read(path), references=3, ambiguous_share=0.3) for path in FILES]
+    assert statistics_median(totals) < 9000
+    assert p95(totals) < 12000
+
+
+def test_budget_holds_when_far_more_pairs_are_ambiguous_than_planned():
+    """Stress: half the pairs reach the model. The median target may slip, the hard ceiling may not."""
+    totals = [case_tokens(read(path), references=3, ambiguous_share=0.5) for path in FILES]
+    assert p95(totals) < 12000
+
+
+def statistics_median(values: list[int]) -> float:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    return ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2

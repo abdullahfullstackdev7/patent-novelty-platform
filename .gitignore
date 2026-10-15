@@ -5,3 +5,6 @@ __pycache__/
 .env
 dataset/raw/
 dataset/processed/
+.coverage
+htmlcov
+loadtest/results*
